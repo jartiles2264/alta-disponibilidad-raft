@@ -1,0 +1,49 @@
+# ─── Binarios de etcd (se descargan con install-etcd-*.sh) ───
+scripts/etcd/etcd
+scripts/etcd/etcd.exe
+scripts/etcd/etcdctl
+scripts/etcd/etcdctl.exe
+scripts/etcd/etcdutl
+scripts/etcd/*.zip
+scripts/etcd/.download/
+
+# ─── Datos locales de etcd ───────────────────────────────────
+*.etcd/
+scripts/etcd/*.etcd/
+scripts/etcd/data-*/
+default.etcd/
+
+# ─── Python ──────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+
+# ─── Configuración y secretos ────────────────────────────────
+.env
+*.env
+config.env
+*.local.sql
+!config.example.env
+!docker/.env.docker
+
+# ─── Docker ──────────────────────────────────────────────────
+# Los volúmenes de datos se manejan con Docker, no se commitean
+docker-data/
+
+# ─── IDE / OS ────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ─── Logs y evidencias ──────────────────────────────────────
+*.log
+evidencias/

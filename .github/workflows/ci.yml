@@ -1,0 +1,93 @@
+name: CI — Alta Disponibilidad MySQL + etcd
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run unit tests
+        run: python -m pytest tests/ -v --tb=short
+
+  cluster-integration:
+    name: Cluster Integration Test
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start full cluster
+        run: docker compose -f docker-compose.cluster.yml up -d --build
+      - name: Wait for etcd health
+        run: |
+          echo "Waiting for etcd cluster..."
+          for i in $(seq 1 60); do
+            if docker exec etcd-1 etcdctl endpoint health --endpoints=http://localhost:2379 2>/dev/null | grep -q "true"; then
+              echo "etcd-1 healthy"
+              break
+            fi
+            echo "Waiting... ($i/60)"
+            sleep 2
+          done
+      - name: Wait for MySQL and sidecar bootstrap
+        run: |
+          echo "Waiting for MySQL nodes and sidecar election..."
+          sleep 45
+      - name: Verify primary was elected
+        run: |
+          PRIMARY=$(docker exec etcd-1 etcdctl get /banco/mysql/primary --print-value-only)
+          echo "Current primary: $PRIMARY"
+          test -n "$PRIMARY" || (echo "FAIL: No primary elected" && exit 1)
+      - name: Verify MySQL connectivity
+        run: |
+          docker exec mysql-node-1 mysql -uroot -prootpassword -e "SELECT @@server_id, @@read_only, @@super_read_only;"
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.cluster.yml down -v
+
+  chaos-failover:
+    name: Chaos Test — Failover
+    runs-on: ubuntu-latest
+    needs: cluster-integration
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start full cluster
+        run: docker compose -f docker-compose.cluster.yml up -d --build
+      - name: Wait for bootstrap
+        run: sleep 50
+      - name: Record initial primary
+        run: |
+          PRIMARY=$(docker exec etcd-1 etcdctl get /banco/mysql/primary --print-value-only)
+          echo "Initial primary: $PRIMARY"
+          echo "INITIAL_PRIMARY=$PRIMARY" >> $GITHUB_ENV
+      - name: Kill primary node
+        run: |
+          echo "Stopping mysql-node-1 and sidecar-1..."
+          docker compose -f docker-compose.cluster.yml stop mysql-node-1 sidecar-1
+      - name: Wait for failover
+        run: |
+          echo "Waiting for new election..."
+          sleep 20
+      - name: Verify new primary elected
+        run: |
+          NEW_PRIMARY=$(docker exec etcd-2 etcdctl get /banco/mysql/primary --print-value-only)
+          echo "New primary: $NEW_PRIMARY"
+          test -n "$NEW_PRIMARY" || (echo "FAIL: No new primary" && exit 1)
+          if [ "$NEW_PRIMARY" = "${{ env.INITIAL_PRIMARY }}" ]; then
+            echo "FAIL: Primary did not change"
+            exit 1
+          fi
+          echo "SUCCESS: Failover completed. New primary is $NEW_PRIMARY"
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.cluster.yml down -v

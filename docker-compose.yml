@@ -1,0 +1,487 @@
+# ─────────────────────────────────────────────────────────────
+# Docker Compose — Clúster completo de 5 nodos MySQL + etcd + sidecar
+#
+# Emula el entorno de 5 máquinas físicas en contenedores.
+# Compatible con Docker Desktop, OrbStack, y cualquier runtime Docker.
+#
+# Uso:
+#   docker compose -f docker-compose.cluster.yml up -d --build
+#   # Esperar ~30s a que MySQL arranque, luego cargar esquema:
+#   docker compose -f docker-compose.cluster.yml exec mysql-node-1 \
+#     mysql -uroot -prootpassword banco_db < docker/mysql/schema.sql
+#
+# Para probar failover:
+#   docker compose -f docker-compose.cluster.yml stop mysql-node-1 sidecar-1
+#   # Observar en logs que otro sidecar toma el liderazgo
+# ─────────────────────────────────────────────────────────────
+
+services:
+  # ═══════════════════════════════════════════════════════════
+  # ETCD CLUSTER (3 nodos — quórum Raft de 2)
+  # ═══════════════════════════════════════════════════════════
+  etcd-1:
+    image: gcr.io/etcd-development/etcd:v3.5.12
+    container_name: etcd-1
+    hostname: etcd-1
+    command:
+      - etcd
+      - --name=etcd-1
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd-1:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd-1:2380
+      - --initial-cluster=etcd-1=http://etcd-1:2380,etcd-2=http://etcd-2:2380,etcd-3=http://etcd-3:2380
+      - --initial-cluster-state=new
+      - --initial-cluster-token=etcd-cluster-docker
+    volumes:
+      - etcd-1-data:/etcd-data
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.11
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  etcd-2:
+    image: gcr.io/etcd-development/etcd:v3.5.12
+    container_name: etcd-2
+    hostname: etcd-2
+    command:
+      - etcd
+      - --name=etcd-2
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd-2:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd-2:2380
+      - --initial-cluster=etcd-1=http://etcd-1:2380,etcd-2=http://etcd-2:2380,etcd-3=http://etcd-3:2380
+      - --initial-cluster-state=new
+      - --initial-cluster-token=etcd-cluster-docker
+    volumes:
+      - etcd-2-data:/etcd-data
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.12
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  etcd-3:
+    image: gcr.io/etcd-development/etcd:v3.5.12
+    container_name: etcd-3
+    hostname: etcd-3
+    command:
+      - etcd
+      - --name=etcd-3
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd-3:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd-3:2380
+      - --initial-cluster=etcd-1=http://etcd-1:2380,etcd-2=http://etcd-2:2380,etcd-3=http://etcd-3:2380
+      - --initial-cluster-state=new
+      - --initial-cluster-token=etcd-cluster-docker
+    volumes:
+      - etcd-3-data:/etcd-data
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.13
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════
+  # MYSQL CLUSTER (5 nodos — 1 primary + 4 secondary)
+  # ═══════════════════════════════════════════════════════════
+  mysql-node-1:
+    image: mysql:8.0
+    container_name: mysql-node-1
+    hostname: mysql-node-1
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_DATABASE: banco_db
+    command: >-
+      --server-id=1
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --log-replica-updates=ON
+      --bind-address=0.0.0.0
+      --skip-name-resolve
+    volumes:
+      - mysql-1-data:/var/lib/mysql
+      - ./docker/mysql/init-users.sql:/docker-entrypoint-initdb.d/01-init-users.sql:ro
+      - ./docker/mysql/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.101
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+  mysql-node-2:
+    image: mysql:8.0
+    container_name: mysql-node-2
+    hostname: mysql-node-2
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_DATABASE: banco_db
+    command: >-
+      --server-id=2
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --log-replica-updates=ON
+      --bind-address=0.0.0.0
+      --skip-name-resolve
+    volumes:
+      - mysql-2-data:/var/lib/mysql
+      - ./docker/mysql/init-users.sql:/docker-entrypoint-initdb.d/01-init-users.sql:ro
+      - ./docker/mysql/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.102
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+  mysql-node-3:
+    image: mysql:8.0
+    container_name: mysql-node-3
+    hostname: mysql-node-3
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_DATABASE: banco_db
+    command: >-
+      --server-id=3
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --log-replica-updates=ON
+      --bind-address=0.0.0.0
+      --skip-name-resolve
+    volumes:
+      - mysql-3-data:/var/lib/mysql
+      - ./docker/mysql/init-users.sql:/docker-entrypoint-initdb.d/01-init-users.sql:ro
+      - ./docker/mysql/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.103
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+  mysql-node-4:
+    image: mysql:8.0
+    container_name: mysql-node-4
+    hostname: mysql-node-4
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_DATABASE: banco_db
+    command: >-
+      --server-id=4
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --log-replica-updates=ON
+      --bind-address=0.0.0.0
+      --skip-name-resolve
+    volumes:
+      - mysql-4-data:/var/lib/mysql
+      - ./docker/mysql/init-users.sql:/docker-entrypoint-initdb.d/01-init-users.sql:ro
+      - ./docker/mysql/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.104
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+  mysql-node-5:
+    image: mysql:8.0
+    container_name: mysql-node-5
+    hostname: mysql-node-5
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_DATABASE: banco_db
+    command: >-
+      --server-id=5
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --log-replica-updates=ON
+      --bind-address=0.0.0.0
+      --skip-name-resolve
+    volumes:
+      - mysql-5-data:/var/lib/mysql
+      - ./docker/mysql/init-users.sql:/docker-entrypoint-initdb.d/01-init-users.sql:ro
+      - ./docker/mysql/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.105
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════
+  # SIDECAR AGENTS (5 — one per MySQL node)
+  # ═══════════════════════════════════════════════════════════
+  sidecar-1:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sidecar
+      network: host
+    container_name: sidecar-1
+    hostname: sidecar-1
+    depends_on:
+      mysql-node-1:
+        condition: service_healthy
+      etcd-1:
+        condition: service_healthy
+      etcd-2:
+        condition: service_healthy
+      etcd-3:
+        condition: service_healthy
+    environment:
+      NODE_IP: "172.20.0.101"
+      MYSQL_HOST: "mysql-node-1"
+      MYSQL_PORT: "3306"
+      SIDECAR_MYSQL_USER: "sidecar"
+      SIDECAR_MYSQL_PASSWORD: "sidecarpass123"
+      MYSQL_REPL_USER: "replica_user"
+      MYSQL_REPL_PASSWORD: "replicapass123"
+      MYSQL_NODES: "172.20.0.101,172.20.0.102,172.20.0.103,172.20.0.104,172.20.0.105"
+      INITIAL_PRIMARY_IP: "172.20.0.101"
+      ETCD_ENDPOINTS: "172.20.0.11:2379,172.20.0.12:2379,172.20.0.13:2379"
+      ETCD_KEY: "/banco/mysql/primary"
+      LEASE_TTL: "5"
+      CHECK_INTERVAL: "2"
+      MAX_DEFERRALS: "5"
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.201
+    restart: unless-stopped
+
+  sidecar-2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sidecar
+      network: host
+    container_name: sidecar-2
+    hostname: sidecar-2
+    depends_on:
+      mysql-node-2:
+        condition: service_healthy
+      etcd-1:
+        condition: service_healthy
+    environment:
+      NODE_IP: "172.20.0.102"
+      MYSQL_HOST: "mysql-node-2"
+      MYSQL_PORT: "3306"
+      SIDECAR_MYSQL_USER: "sidecar"
+      SIDECAR_MYSQL_PASSWORD: "sidecarpass123"
+      MYSQL_REPL_USER: "replica_user"
+      MYSQL_REPL_PASSWORD: "replicapass123"
+      MYSQL_NODES: "172.20.0.101,172.20.0.102,172.20.0.103,172.20.0.104,172.20.0.105"
+      INITIAL_PRIMARY_IP: "172.20.0.101"
+      ETCD_ENDPOINTS: "172.20.0.11:2379,172.20.0.12:2379,172.20.0.13:2379"
+      ETCD_KEY: "/banco/mysql/primary"
+      LEASE_TTL: "5"
+      CHECK_INTERVAL: "2"
+      MAX_DEFERRALS: "5"
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.202
+    restart: unless-stopped
+
+  sidecar-3:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sidecar
+      network: host
+    container_name: sidecar-3
+    hostname: sidecar-3
+    depends_on:
+      mysql-node-3:
+        condition: service_healthy
+      etcd-1:
+        condition: service_healthy
+    environment:
+      NODE_IP: "172.20.0.103"
+      MYSQL_HOST: "mysql-node-3"
+      MYSQL_PORT: "3306"
+      SIDECAR_MYSQL_USER: "sidecar"
+      SIDECAR_MYSQL_PASSWORD: "sidecarpass123"
+      MYSQL_REPL_USER: "replica_user"
+      MYSQL_REPL_PASSWORD: "replicapass123"
+      MYSQL_NODES: "172.20.0.101,172.20.0.102,172.20.0.103,172.20.0.104,172.20.0.105"
+      INITIAL_PRIMARY_IP: "172.20.0.101"
+      ETCD_ENDPOINTS: "172.20.0.11:2379,172.20.0.12:2379,172.20.0.13:2379"
+      ETCD_KEY: "/banco/mysql/primary"
+      LEASE_TTL: "5"
+      CHECK_INTERVAL: "2"
+      MAX_DEFERRALS: "5"
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.203
+    restart: unless-stopped
+
+  sidecar-4:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sidecar
+      network: host
+    container_name: sidecar-4
+    hostname: sidecar-4
+    depends_on:
+      mysql-node-4:
+        condition: service_healthy
+      etcd-1:
+        condition: service_healthy
+    environment:
+      NODE_IP: "172.20.0.104"
+      MYSQL_HOST: "mysql-node-4"
+      MYSQL_PORT: "3306"
+      SIDECAR_MYSQL_USER: "sidecar"
+      SIDECAR_MYSQL_PASSWORD: "sidecarpass123"
+      MYSQL_REPL_USER: "replica_user"
+      MYSQL_REPL_PASSWORD: "replicapass123"
+      MYSQL_NODES: "172.20.0.101,172.20.0.102,172.20.0.103,172.20.0.104,172.20.0.105"
+      INITIAL_PRIMARY_IP: "172.20.0.101"
+      ETCD_ENDPOINTS: "172.20.0.11:2379,172.20.0.12:2379,172.20.0.13:2379"
+      ETCD_KEY: "/banco/mysql/primary"
+      LEASE_TTL: "5"
+      CHECK_INTERVAL: "2"
+      MAX_DEFERRALS: "5"
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.204
+    restart: unless-stopped
+
+  sidecar-5:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sidecar
+      network: host
+    container_name: sidecar-5
+    hostname: sidecar-5
+    depends_on:
+      mysql-node-5:
+        condition: service_healthy
+      etcd-1:
+        condition: service_healthy
+    environment:
+      NODE_IP: "172.20.0.105"
+      MYSQL_HOST: "mysql-node-5"
+      MYSQL_PORT: "3306"
+      SIDECAR_MYSQL_USER: "sidecar"
+      SIDECAR_MYSQL_PASSWORD: "sidecarpass123"
+      MYSQL_REPL_USER: "replica_user"
+      MYSQL_REPL_PASSWORD: "replicapass123"
+      MYSQL_NODES: "172.20.0.101,172.20.0.102,172.20.0.103,172.20.0.104,172.20.0.105"
+      INITIAL_PRIMARY_IP: "172.20.0.101"
+      ETCD_ENDPOINTS: "172.20.0.11:2379,172.20.0.12:2379,172.20.0.13:2379"
+      ETCD_KEY: "/banco/mysql/primary"
+      LEASE_TTL: "5"
+      CHECK_INTERVAL: "2"
+      MAX_DEFERRALS: "5"
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.205
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════
+  # APLICACIÓN BANCARIA
+  # ═══════════════════════════════════════════════════════════
+  banco-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.app
+      network: host
+    container_name: banco-app
+    hostname: banco-app
+    depends_on:
+      etcd-1:
+        condition: service_healthy
+      etcd-2:
+        condition: service_healthy
+      etcd-3:
+        condition: service_healthy
+    environment:
+      MYSQL_USER: "banco_app"
+      MYSQL_PASSWORD: "bancopass123"
+      MYSQL_DATABASE: "banco_db"
+      MYSQL_PORT: "3306"
+      ETCD_ENDPOINTS: "172.20.0.11:2379,172.20.0.12:2379,172.20.0.13:2379"
+      ETCD_KEY: "/banco/mysql/primary"
+      POOL_SIZE: "5"
+      RETRY_MAX: "15"
+      FAILOVER_WAIT: "30"
+      TRANSFER_INTERVAL: "1"
+    networks:
+      banco-net:
+        ipv4_address: 172.20.0.250
+    restart: unless-stopped
+    # In prueba-oro mode, runs continuously
+    # In interactive mode, needs stdin: docker compose exec banco-app python src/banco_app.py
+    stdin_open: true
+    tty: true
+
+# ═══════════════════════════════════════════════════════════
+# NETWORK
+# ═══════════════════════════════════════════════════════════
+networks:
+  banco-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1
+
+# ═══════════════════════════════════════════════════════════
+# VOLUMES
+# ═══════════════════════════════════════════════════════════
+volumes:
+  etcd-1-data:
+  etcd-2-data:
+  etcd-3-data:
+  mysql-1-data:
+  mysql-2-data:
+  mysql-3-data:
+  mysql-4-data:
+  mysql-5-data:
