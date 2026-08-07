@@ -2,7 +2,7 @@
 """End-to-end cluster tests.
 
 These tests require the Docker cluster to be running:
-    docker compose -f docker-compose.cluster.yml up -d --build
+    docker compose up -d --build
 
 Run with:
     python tests/test_cluster_e2e.py
@@ -72,7 +72,7 @@ def test_failover():
 
     # Stop primary MySQL and its sidecar
     print("  Stopping mysql-node-1 and sidecar-1...")
-    run("docker compose -f docker-compose.cluster.yml stop mysql-node-1 sidecar-1",
+    run("docker compose stop mysql-node-1 sidecar-1",
         capture=False)
 
     # Wait for failover
@@ -91,7 +91,7 @@ def test_failover():
 
     # Restart stopped services
     print("  Restarting mysql-node-1 and sidecar-1...")
-    run("docker compose -f docker-compose.cluster.yml start mysql-node-1 sidecar-1",
+    run("docker compose start mysql-node-1 sidecar-1",
         capture=False)
     time.sleep(10)
     print("  ✓ Services restarted")

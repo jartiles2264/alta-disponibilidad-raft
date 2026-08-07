@@ -18,6 +18,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Run unit tests
+        env:
+          ETCD_ENDPOINTS: "127.0.0.1:2379"
+          MYSQL_NODES: "127.0.0.1"
+          NODE_IP: "127.0.0.1"
+          INITIAL_PRIMARY_IP: "127.0.0.1"
         run: python -m pytest tests/ -v --tb=short
 
   cluster-integration:
@@ -27,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Start full cluster
-        run: docker compose -f docker-compose.cluster.yml up -d --build
+        run: docker compose up -d --build
       - name: Wait for etcd health
         run: |
           echo "Waiting for etcd cluster..."
@@ -53,7 +58,7 @@ jobs:
           docker exec mysql-node-1 mysql -uroot -prootpassword -e "SELECT @@server_id, @@read_only, @@super_read_only;"
       - name: Tear down
         if: always()
-        run: docker compose -f docker-compose.cluster.yml down -v
+        run: docker compose down -v
 
   chaos-failover:
     name: Chaos Test — Failover
@@ -62,7 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Start full cluster
-        run: docker compose -f docker-compose.cluster.yml up -d --build
+        run: docker compose up -d --build
       - name: Wait for bootstrap
         run: sleep 50
       - name: Record initial primary
@@ -73,7 +78,7 @@ jobs:
       - name: Kill primary node
         run: |
           echo "Stopping mysql-node-1 and sidecar-1..."
-          docker compose -f docker-compose.cluster.yml stop mysql-node-1 sidecar-1
+          docker compose stop mysql-node-1 sidecar-1
       - name: Wait for failover
         run: |
           echo "Waiting for new election..."
