@@ -1,10 +1,10 @@
-# Sistema Bancario de Alta Disponibilidad (Raft) - Clúster Distribuido
+# Sistema Bancario de Alta Disponibilidad (Raft) - Clúster Distribuido en LAN
 
-Este proyecto implementa una arquitectura distribuida de base de datos bancaria con tolerancia a fallos mediante el algoritmo de consenso Raft (vía etcd). El clúster consta de 5 nodos MySQL distribuidos físicamente en diferentes computadoras mediante una red VPN (Tailscale).
+Este proyecto implementa una arquitectura distribuida de base de datos bancaria con tolerancia a fallos mediante el algoritmo de consenso Raft (vía etcd). El clúster consta de 5 nodos MySQL distribuidos físicamente en diferentes computadoras dentro de una misma red local (Wi-Fi o Ethernet).
 
 ## Arquitectura
 
-- **Red VPN Mesh (Tailscale)**: Todos los nodos se comunican de forma segura a través de IPs globales estáticas `100.x.x.x` que evitan problemas de firewalls locales.
+- **Red Local (LAN)**: Todos los nodos se comunican de forma directa a través de las IPs locales asignadas por el enrutador Wi-Fi (ej. `192.168.x.x`).
 - **Etcd**: Clúster de 3 nodos (Plano de control y bloqueo distribuido).
 - **MySQL**: 5 nodos corriendo MySQL 8.0 (1 Maestro y 4 Réplicas dinámicas).
 - **Sidecar (Python)**: 5 agentes (1 en cada máquina) conectados a etcd que gestionan el failover y la configuración de replicación de sus respectivos nodos locales.
@@ -12,14 +12,21 @@ Este proyecto implementa una arquitectura distribuida de base de datos bancaria 
 
 ## CONFIGURACIÓN INICIAL (Obligatoria para todos los compañeros)
 
-1. **Instalar Tailscale**
-   - Cada persona debe descargar e instalar [Tailscale](https://tailscale.com/) en su computadora e iniciar sesión.
-   - Anotar la IP asignada (la que empieza con `100.x.x.x`).
+1. **Averiguar IP Local**
+   - Cada persona debe averiguar su IP local (`192.168.x.x`).
+   - *Windows:* Abrir CMD y ejecutar `ipconfig` (buscar Dirección IPv4).
+   - *Mac/Linux:* Abrir Terminal y ejecutar `ifconfig` o `ip a`.
 
-2. **Configurar el entorno**
+2. **Desbloquear Puertos en el Firewall (CRÍTICO)**
+   - El Firewall bloqueará la conexión por defecto. Deben abrir los puertos **3306, 2379 y 2380**.
+   - **Opción Rápida:** Ejecuten los scripts incluidos en la carpeta `scripts`:
+     - *Windows:* Abran PowerShell como Administrador y ejecuten `.\scripts\open-firewall.ps1`.
+     - *Mac/Linux:* Abran Terminal y ejecuten `sudo bash scripts/open-firewall.sh`.
+
+3. **Configurar el entorno**
    - Clonar este repositorio.
    - Copiar el archivo `.env.example` y renombrarlo como `.env` en la raíz del proyecto.
-   - ¡Trabajen en equipo! Llenen el archivo `.env` con las 5 IPs de Tailscale de manera que todos tengan EXACTAMENTE el mismo archivo `.env`.
+   - ¡Trabajen en equipo! Llenen el archivo `.env` con las 5 IPs locales de manera que todos tengan EXACTAMENTE el mismo archivo `.env`.
 
 ---
 

@@ -22,10 +22,10 @@ services:
       - --name=etcd-1
       - --data-dir=/etcd-data
       - --listen-client-urls=http://0.0.0.0:2379
-      - --advertise-client-urls=http://${TAILSCALE_IP_1}:2379
+      - --advertise-client-urls=http://${LAN_IP_1}:2379
       - --listen-peer-urls=http://0.0.0.0:2380
-      - --initial-advertise-peer-urls=http://${TAILSCALE_IP_1}:2380
-      - --initial-cluster=etcd-1=http://${TAILSCALE_IP_1}:2380,etcd-2=http://${TAILSCALE_IP_2}:2380,etcd-3=http://${TAILSCALE_IP_3}:2380
+      - --initial-advertise-peer-urls=http://${LAN_IP_1}:2380
+      - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380
       - --initial-cluster-state=new
       - --initial-cluster-token=etcd-cluster-docker
     ports:
@@ -44,10 +44,10 @@ services:
       - --name=etcd-2
       - --data-dir=/etcd-data
       - --listen-client-urls=http://0.0.0.0:2379
-      - --advertise-client-urls=http://${TAILSCALE_IP_2}:2379
+      - --advertise-client-urls=http://${LAN_IP_2}:2379
       - --listen-peer-urls=http://0.0.0.0:2380
-      - --initial-advertise-peer-urls=http://${TAILSCALE_IP_2}:2380
-      - --initial-cluster=etcd-1=http://${TAILSCALE_IP_1}:2380,etcd-2=http://${TAILSCALE_IP_2}:2380,etcd-3=http://${TAILSCALE_IP_3}:2380
+      - --initial-advertise-peer-urls=http://${LAN_IP_2}:2380
+      - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380
       - --initial-cluster-state=new
       - --initial-cluster-token=etcd-cluster-docker
     ports:
@@ -66,10 +66,10 @@ services:
       - --name=etcd-3
       - --data-dir=/etcd-data
       - --listen-client-urls=http://0.0.0.0:2379
-      - --advertise-client-urls=http://${TAILSCALE_IP_3}:2379
+      - --advertise-client-urls=http://${LAN_IP_3}:2379
       - --listen-peer-urls=http://0.0.0.0:2380
-      - --initial-advertise-peer-urls=http://${TAILSCALE_IP_3}:2380
-      - --initial-cluster=etcd-1=http://${TAILSCALE_IP_1}:2380,etcd-2=http://${TAILSCALE_IP_2}:2380,etcd-3=http://${TAILSCALE_IP_3}:2380
+      - --initial-advertise-peer-urls=http://${LAN_IP_3}:2380
+      - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380
       - --initial-cluster-state=new
       - --initial-cluster-token=etcd-cluster-docker
     ports:
@@ -219,16 +219,16 @@ services:
     depends_on:
       - mysql-node-1
     environment:
-      NODE_IP: ${TAILSCALE_IP_1}
+      NODE_IP: ${LAN_IP_1}
       MYSQL_HOST: mysql-node-1
       MYSQL_PORT: "3306"
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
       MYSQL_REPL_USER: "replica_user"
       MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD}
-      MYSQL_NODES: "${TAILSCALE_IP_1},${TAILSCALE_IP_2},${TAILSCALE_IP_3},${TAILSCALE_IP_4},${TAILSCALE_IP_5}"
-      INITIAL_PRIMARY_IP: ${TAILSCALE_IP_1}
-      ETCD_ENDPOINTS: "${TAILSCALE_IP_1}:2379,${TAILSCALE_IP_2}:2379,${TAILSCALE_IP_3}:2379"
+      MYSQL_NODES: "${LAN_IP_1},${LAN_IP_2},${LAN_IP_3},${LAN_IP_4},${LAN_IP_5}"
+      INITIAL_PRIMARY_IP: ${LAN_IP_1}
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
       LEASE_TTL: "5"
       CHECK_INTERVAL: "2"
@@ -244,16 +244,16 @@ services:
     depends_on:
       - mysql-node-2
     environment:
-      NODE_IP: ${TAILSCALE_IP_2}
+      NODE_IP: ${LAN_IP_2}
       MYSQL_HOST: mysql-node-2
       MYSQL_PORT: "3306"
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
       MYSQL_REPL_USER: "replica_user"
       MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD}
-      MYSQL_NODES: "${TAILSCALE_IP_1},${TAILSCALE_IP_2},${TAILSCALE_IP_3},${TAILSCALE_IP_4},${TAILSCALE_IP_5}"
-      INITIAL_PRIMARY_IP: ${TAILSCALE_IP_1}
-      ETCD_ENDPOINTS: "${TAILSCALE_IP_1}:2379,${TAILSCALE_IP_2}:2379,${TAILSCALE_IP_3}:2379"
+      MYSQL_NODES: "${LAN_IP_1},${LAN_IP_2},${LAN_IP_3},${LAN_IP_4},${LAN_IP_5}"
+      INITIAL_PRIMARY_IP: ${LAN_IP_1}
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
       LEASE_TTL: "5"
       CHECK_INTERVAL: "2"
