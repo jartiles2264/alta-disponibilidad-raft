@@ -360,7 +360,8 @@ def demote_to_replica(primary_ip):
             cursor.execute(
                 "CHANGE REPLICATION SOURCE TO "
                 "SOURCE_HOST=%s, SOURCE_PORT=%s, SOURCE_USER=%s, "
-                "SOURCE_PASSWORD=%s, SOURCE_AUTO_POSITION=1",
+                "SOURCE_PASSWORD=%s, SOURCE_AUTO_POSITION=1, "
+                "GET_SOURCE_PUBLIC_KEY=1",
                 (
                     primary_ip,
                     MYSQL_PORT,
