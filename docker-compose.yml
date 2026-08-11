@@ -269,16 +269,16 @@ services:
     depends_on:
       - mysql-node-3
     environment:
-      NODE_IP: ${TAILSCALE_IP_3}
+      NODE_IP: ${LAN_IP_3}
       MYSQL_HOST: mysql-node-3
       MYSQL_PORT: "3306"
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
       MYSQL_REPL_USER: "replica_user"
       MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD}
-      MYSQL_NODES: "${TAILSCALE_IP_1},${TAILSCALE_IP_2},${TAILSCALE_IP_3},${TAILSCALE_IP_4},${TAILSCALE_IP_5}"
-      INITIAL_PRIMARY_IP: ${TAILSCALE_IP_1}
-      ETCD_ENDPOINTS: "${TAILSCALE_IP_1}:2379,${TAILSCALE_IP_2}:2379,${TAILSCALE_IP_3}:2379"
+      MYSQL_NODES: "${LAN_IP_1},${LAN_IP_2},${LAN_IP_3},${LAN_IP_4},${LAN_IP_5}"
+      INITIAL_PRIMARY_IP: ${LAN_IP_1}
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
       LEASE_TTL: "5"
       CHECK_INTERVAL: "2"
@@ -294,16 +294,16 @@ services:
     depends_on:
       - mysql-node-4
     environment:
-      NODE_IP: ${TAILSCALE_IP_4}
+      NODE_IP: ${LAN_IP_4}
       MYSQL_HOST: mysql-node-4
       MYSQL_PORT: "3306"
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
       MYSQL_REPL_USER: "replica_user"
       MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD}
-      MYSQL_NODES: "${TAILSCALE_IP_1},${TAILSCALE_IP_2},${TAILSCALE_IP_3},${TAILSCALE_IP_4},${TAILSCALE_IP_5}"
-      INITIAL_PRIMARY_IP: ${TAILSCALE_IP_1}
-      ETCD_ENDPOINTS: "${TAILSCALE_IP_1}:2379,${TAILSCALE_IP_2}:2379,${TAILSCALE_IP_3}:2379"
+      MYSQL_NODES: "${LAN_IP_1},${LAN_IP_2},${LAN_IP_3},${LAN_IP_4},${LAN_IP_5}"
+      INITIAL_PRIMARY_IP: ${LAN_IP_1}
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
       LEASE_TTL: "5"
       CHECK_INTERVAL: "2"
@@ -319,16 +319,16 @@ services:
     depends_on:
       - mysql-node-5
     environment:
-      NODE_IP: ${TAILSCALE_IP_5}
+      NODE_IP: ${LAN_IP_5}
       MYSQL_HOST: mysql-node-5
       MYSQL_PORT: "3306"
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
       MYSQL_REPL_USER: "replica_user"
       MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD}
-      MYSQL_NODES: "${TAILSCALE_IP_1},${TAILSCALE_IP_2},${TAILSCALE_IP_3},${TAILSCALE_IP_4},${TAILSCALE_IP_5}"
-      INITIAL_PRIMARY_IP: ${TAILSCALE_IP_1}
-      ETCD_ENDPOINTS: "${TAILSCALE_IP_1}:2379,${TAILSCALE_IP_2}:2379,${TAILSCALE_IP_3}:2379"
+      MYSQL_NODES: "${LAN_IP_1},${LAN_IP_2},${LAN_IP_3},${LAN_IP_4},${LAN_IP_5}"
+      INITIAL_PRIMARY_IP: ${LAN_IP_1}
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
       LEASE_TTL: "5"
       CHECK_INTERVAL: "2"
@@ -349,7 +349,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: "banco_db"
       MYSQL_PORT: "3306"
-      ETCD_ENDPOINTS: "${TAILSCALE_IP_1}:2379,${TAILSCALE_IP_2}:2379,${TAILSCALE_IP_3}:2379"
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
       POOL_SIZE: "5"
       RETRY_MAX: "15"
