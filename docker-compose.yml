@@ -242,8 +242,8 @@ services:
       MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD}
       MYSQL_NODES: "${LAN_IP_1},${LAN_IP_2},${LAN_IP_3},${LAN_IP_4},${LAN_IP_5}"
       INITIAL_PRIMARY_IP: ${LAN_IP_1}
-      # etcd LOCAL por nombre de contenedor, REMOTOS por LAN IP
-      ETCD_ENDPOINTS: "etcd-1:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
+      # etcd remoto/local HOMOLOGADO a IPs numéricas (evita redirección hairpin)
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
       LEASE_TTL: "10"
       CHECK_INTERVAL: "3"
@@ -269,8 +269,8 @@ services:
       MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD}
       MYSQL_NODES: "${LAN_IP_1},${LAN_IP_2},${LAN_IP_3},${LAN_IP_4},${LAN_IP_5}"
       INITIAL_PRIMARY_IP: ${LAN_IP_1}
-      # etcd LOCAL por nombre de contenedor, REMOTOS por LAN IP
-      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,etcd-2:2379,${LAN_IP_3}:2379"
+      # etcd remoto/local HOMOLOGADO a IPs numéricas (evita redirección hairpin)
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
       LEASE_TTL: "10"
       CHECK_INTERVAL: "3"
@@ -296,8 +296,8 @@ services:
       MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD}
       MYSQL_NODES: "${LAN_IP_1},${LAN_IP_2},${LAN_IP_3},${LAN_IP_4},${LAN_IP_5}"
       INITIAL_PRIMARY_IP: ${LAN_IP_1}
-      # etcd LOCAL por nombre de contenedor, REMOTOS por LAN IP
-      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,etcd-3:2379"
+      # etcd remoto/local HOMOLOGADO a IPs numéricas (evita redirección hairpin)
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
       LEASE_TTL: "10"
       CHECK_INTERVAL: "3"
