@@ -1,98 +1,150 @@
-# Sistema Bancario de Alta Disponibilidad (Raft) - Clúster Distribuido en LAN
+# Sistema Bancario de Alta Disponibilidad — Cluster Distribuido en LAN
 
-Este proyecto implementa una arquitectura distribuida de base de datos bancaria con tolerancia a fallos mediante el algoritmo de consenso Raft (vía etcd). El clúster consta de 5 nodos MySQL distribuidos físicamente en diferentes computadoras dentro de una misma red local (Wi-Fi o Ethernet).
+Cluster de 5 nodos MySQL con eleccion de maestro via algoritmo Raft (etcd), distribuido en maquinas fisicas conectadas a la misma red Wi-Fi o Hotspot.
 
 ## Arquitectura
 
-- **Red Local (LAN)**: Todos los nodos se comunican de forma directa a través de las IPs locales asignadas por el enrutador Wi-Fi (ej. `192.168.x.x`).
-- **Etcd**: Clúster de 3 nodos (Plano de control y bloqueo distribuido).
-- **MySQL**: 5 nodos corriendo MySQL 8.0 (1 Maestro y 4 Réplicas dinámicas).
-- **Sidecar (Python)**: 5 agentes (1 en cada máquina) conectados a etcd que gestionan el failover y la configuración de replicación de sus respectivos nodos locales.
-- **Cliente Bancario (Python)**: App transaccional (ACID) que descubre al maestro actual consultando a etcd y cuenta con reintentos idempotentes.
-
-## CONFIGURACIÓN INICIAL (Obligatoria para todos los compañeros)
-
-1. **Averiguar IP Local**
-   - Cada persona debe averiguar su IP local (`192.168.x.x`).
-   - *Windows:* Abrir CMD y ejecutar `ipconfig` (buscar Dirección IPv4).
-   - *Mac/Linux:* Abrir Terminal y ejecutar `ifconfig` o `ip a`.
-
-2. **Desbloquear Puertos en el Firewall (CRÍTICO)**
-   - El Firewall bloqueará la conexión por defecto. Deben abrir los puertos **3306, 2379 y 2380**.
-   - **Opción Rápida:** Ejecuten los scripts incluidos en la carpeta `scripts`:
-     - *Windows:* Abran PowerShell como Administrador y ejecuten `.\scripts\open-firewall.ps1`.
-     - *Mac/Linux:* Abran Terminal y ejecuten `sudo bash scripts/open-firewall.sh`.
-
-3. **Configurar el entorno**
-   - Clonar este repositorio.
-   - Copiar el archivo `.env.example` y renombrarlo como `.env` en la raíz del proyecto.
-   - ¡Trabajen en equipo! Llenen el archivo `.env` con las 5 IPs locales de manera que todos tengan EXACTAMENTE el mismo archivo `.env`.
+- **5 nodos MySQL** — 1 Maestro activo + 4 Replicas sincronicas
+- **3 nodos etcd** — Quorum Raft para eleccion de lider (tolera 1 caida)
+- **5 Sidecars Python** — Agentes de coordinacion, 1 por maquina
+- **Red local directa** — Los contenedores usan `network_mode: host`, por lo que se comunican directamente a traves de la red Wi-Fi/Hotspot sin intermediarios Docker
 
 ---
 
-## USO DEL CLÚSTER DISTRIBUIDO
+## CONFIGURACION INICIAL (Hacerlo una sola vez)
 
-En lugar de levantar todos los contenedores en una sola máquina, cada compañero usará un **perfil** específico.
+### Paso 1 — Cada quien averigua su IP local
 
-### Paso 1: Levantar la Infraestructura
-
-**Compañero 1:**
+**Mac/Linux:**
 ```bash
-docker compose --profile node-1 up -d
+ipconfig getifaddr en0
 ```
 
-**Compañero 2:**
-```bash
-docker compose --profile node-2 up -d
+**Windows (PowerShell):**
+```powershell
+ipconfig
+# Buscar "Direccion IPv4" — ignorar IPs que empiecen con 169.x
 ```
 
-**Compañero 3:**
-```bash
-docker compose --profile node-3 up -d
+### Paso 2 — Crear el archivo .env (Solo el lider, luego compartirlo)
+
+Copiar `.env.example` a `.env` y llenar con las IPs reales:
+
+```env
+LAN_IP_1=172.20.10.2   # IP del Nodo 1 (Maestro inicial)
+LAN_IP_2=172.20.10.3   # IP del Nodo 2
+LAN_IP_3=172.20.10.4   # IP del Nodo 3
+LAN_IP_4=172.20.10.5   # IP del Nodo 4 (o 127.0.0.1 si no hay)
+LAN_IP_5=127.0.0.2     # IP del Nodo 5 (o 127.0.0.2 si no hay)
+
+MYSQL_ROOT_PASSWORD=rootpassword
+MYSQL_PASSWORD=bancopass123
+SIDECAR_MYSQL_PASSWORD=sidecarpass123
+MYSQL_REPL_PASSWORD=replicapass123
 ```
 
-**Compañero 4:**
-```bash
-docker compose --profile node-4 up -d
+**CRITICO:** Pasar este archivo `.env` a todos los compañeros. Deben tener exactamente el mismo.
+
+### Paso 3 — Desbloquear Firewall (Solo Windows)
+
+Abrir PowerShell **como Administrador:**
+```powershell
+.\scripts\open-firewall.ps1
 ```
 
-**Compañero 5:**
-```bash
-docker compose --profile node-5 up -d
-```
+Ademas, cambiar la red Wi-Fi a **"Privada"** en Configuracion de Windows.
 
-> **Nota:** Los nodos 1, 2 y 3 corren etcd + MySQL + Sidecar. Los nodos 4 y 5 solo corren MySQL + Sidecar.
+---
 
-### Paso 2: Ejecutar Pruebas (Cualquier Compañero)
+## USO — Levantar el cluster
 
-Cualquier miembro del equipo puede ejecutar la app bancaria, ya sea de forma automática o interactiva.
+### Limpieza obligatoria antes de cada sesion nueva
 
-#### Opción A: Prueba Automática (Prueba de Oro)
-```bash
-# Levantar la app de prueba
-docker compose --profile app up -d
-
-# Ver las transferencias en vivo
-docker compose logs -f banco-app
-```
-*(Para detenerla, presiona Ctrl+C y luego `docker compose stop banco-app`)*
-
-#### Opción B: Modo Interactivo (Manual)
-```bash
-docker compose run -it --rm banco-app python src/banco_app.py
-```
-*(Sigue las instrucciones en pantalla para transferir o consultar saldos).*
-
-### Paso 3: Simular Caída del Maestro (Failover)
-
-El compañero que tenga el **Nodo 1** (que inicia como maestro), debe apagar sus servicios simulando una falla de hardware:
-```bash
-docker compose stop mysql-node-1 sidecar-1
-```
-En las pantallas de los demás compañeros (y en la app cliente) verán cómo el clúster elige automáticamente un nuevo maestro en menos de 5 segundos y las transferencias continúan.
-
-### Paso 4: Limpieza
-Para apagar y borrar los datos locales al terminar el examen:
 ```bash
 docker compose down -v
 ```
+
+### Levantar el nodo propio
+
+Cada quien ejecuta su perfil con el flag `--build` (obligatorio para que Docker lea el `.env` actualizado):
+
+```bash
+# Nodo 1:
+docker compose --profile node-1 up -d --build
+
+# Nodo 2:
+docker compose --profile node-2 up -d --build
+
+# Nodo 3:
+docker compose --profile node-3 up -d --build
+
+# Nodo 4:
+docker compose --profile node-4 up -d --build
+```
+
+### Ver los logs en vivo
+
+```bash
+docker compose logs -f sidecar-1   # cambiar el numero segun el nodo
+```
+
+El cluster esta listo cuando se ve: `PROMOTION complete` en un nodo y `REPLICA configured` en los demas.
+
+---
+
+## Pruebas
+
+### Prueba de Oro (automatica)
+
+```bash
+docker compose --profile app up -d --build
+docker compose logs -f banco-app
+```
+
+### Modo interactivo (manual)
+
+```bash
+docker compose run -it --rm banco-app python src/banco_app.py
+```
+
+### Simular caida del Maestro (Failover)
+
+En la maquina del Nodo 1:
+```bash
+docker compose stop mysql-node-1 sidecar-1
+```
+
+Observar en los logs de los otros nodos como el sistema elige automaticamente un nuevo Maestro.
+
+---
+
+## Diagnostico de conectividad
+
+**Mac/Linux:**
+```bash
+bash scripts/check-network.sh 172.20.10.2 172.20.10.3 172.20.10.4
+```
+
+**Windows (PowerShell como Admin):**
+```powershell
+.\scripts\check-network.ps1 -Peers 172.20.10.2,172.20.10.3,172.20.10.4
+```
+
+---
+
+## Apagar todo
+
+```bash
+docker compose down -v
+```
+
+---
+
+## Cambiar de red Wi-Fi
+
+1. Todos averiguan su nueva IP
+2. El lider actualiza `.env` con nuevas IPs y lo comparte
+3. Todos ejecutan `docker compose down -v`
+4. Todos ejecutan `docker compose --profile node-X up -d --build`
+
+El `--build` es esencial para que Docker tome las nuevas IPs.

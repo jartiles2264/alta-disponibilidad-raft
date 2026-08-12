@@ -1,22 +1,31 @@
 # ─────────────────────────────────────────────────────────────
-# Docker Compose — Clúster Distribuido (Mesh VPN / Tailscale)
+# Docker Compose — Clúster Distribuido en Red Local (LAN/Hotspot)
 #
-# Cada compañero debe tener una copia de este repositorio y
-# haber configurado el archivo .env con las IPs de Tailscale.
+# ARQUITECTURA DE RED:
+#   - etcd y sidecar usan network_mode: host para poder hablar
+#     con las otras máquinas a través de la LAN/Hotspot.
+#   - MySQL usa puertos mapeados al host (0.0.0.0:3306).
+#   - El sidecar se conecta a MySQL via el nombre de contenedor
+#     usando host.docker.internal (Mac/Win) o la IP del host.
 #
-# Uso por nodo:
-#   docker compose --profile node-1 up -d
+# USO POR NODO:
+#   docker compose --profile node-1 up -d   (Maestro)
+#   docker compose --profile node-2 up -d
+#   docker compose --profile node-3 up -d
+#   docker compose --profile node-4 up -d
+#   docker compose --profile node-5 up -d
 # ─────────────────────────────────────────────────────────────
 
 services:
   # ═══════════════════════════════════════════════════════════
   # ETCD CLUSTER (3 nodos — quórum Raft de 2)
-  # Corre en los perfiles: node-1, node-2, node-3
+  # Usa network_mode: host para poder hacer peering entre máquinas
   # ═══════════════════════════════════════════════════════════
   etcd-1:
     profiles: ["node-1"]
     image: gcr.io/etcd-development/etcd:v3.5.12
     container_name: etcd-1
+    network_mode: host
     command:
       - etcd
       - --name=etcd-1
@@ -27,10 +36,7 @@ services:
       - --initial-advertise-peer-urls=http://${LAN_IP_1}:2380
       - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380
       - --initial-cluster-state=new
-      - --initial-cluster-token=etcd-cluster-docker
-    ports:
-      - "2379:2379"
-      - "2380:2380"
+      - --initial-cluster-token=etcd-cluster-lan
     volumes:
       - etcd-1-data:/etcd-data
     restart: unless-stopped
@@ -39,6 +45,7 @@ services:
     profiles: ["node-2"]
     image: gcr.io/etcd-development/etcd:v3.5.12
     container_name: etcd-2
+    network_mode: host
     command:
       - etcd
       - --name=etcd-2
@@ -49,10 +56,7 @@ services:
       - --initial-advertise-peer-urls=http://${LAN_IP_2}:2380
       - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380
       - --initial-cluster-state=new
-      - --initial-cluster-token=etcd-cluster-docker
-    ports:
-      - "2379:2379"
-      - "2380:2380"
+      - --initial-cluster-token=etcd-cluster-lan
     volumes:
       - etcd-2-data:/etcd-data
     restart: unless-stopped
@@ -61,6 +65,7 @@ services:
     profiles: ["node-3"]
     image: gcr.io/etcd-development/etcd:v3.5.12
     container_name: etcd-3
+    network_mode: host
     command:
       - etcd
       - --name=etcd-3
@@ -71,16 +76,15 @@ services:
       - --initial-advertise-peer-urls=http://${LAN_IP_3}:2380
       - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380
       - --initial-cluster-state=new
-      - --initial-cluster-token=etcd-cluster-docker
-    ports:
-      - "2379:2379"
-      - "2380:2380"
+      - --initial-cluster-token=etcd-cluster-lan
     volumes:
       - etcd-3-data:/etcd-data
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════
   # MYSQL CLUSTER (5 nodos distribuidos)
+  # MySQL NO puede usar network_mode: host con nombre de contenedor,
+  # usa puertos mapeados al host normal.
   # ═══════════════════════════════════════════════════════════
   mysql-node-1:
     profiles: ["node-1"]
@@ -100,7 +104,7 @@ services:
       --bind-address=0.0.0.0
       --skip-name-resolve
     ports:
-      - "3306:3306"
+      - "0.0.0.0:3306:3306"
     volumes:
       - mysql-1-data:/var/lib/mysql
       - ./docker/mysql/init-users.sql:/docker-entrypoint-initdb.d/01-init-users.sql:ro
@@ -125,7 +129,7 @@ services:
       --bind-address=0.0.0.0
       --skip-name-resolve
     ports:
-      - "3306:3306"
+      - "0.0.0.0:3306:3306"
     volumes:
       - mysql-2-data:/var/lib/mysql
       - ./docker/mysql/init-users.sql:/docker-entrypoint-initdb.d/01-init-users.sql:ro
@@ -150,7 +154,7 @@ services:
       --bind-address=0.0.0.0
       --skip-name-resolve
     ports:
-      - "3306:3306"
+      - "0.0.0.0:3306:3306"
     volumes:
       - mysql-3-data:/var/lib/mysql
       - ./docker/mysql/init-users.sql:/docker-entrypoint-initdb.d/01-init-users.sql:ro
@@ -175,7 +179,7 @@ services:
       --bind-address=0.0.0.0
       --skip-name-resolve
     ports:
-      - "3306:3306"
+      - "0.0.0.0:3306:3306"
     volumes:
       - mysql-4-data:/var/lib/mysql
       - ./docker/mysql/init-users.sql:/docker-entrypoint-initdb.d/01-init-users.sql:ro
@@ -200,7 +204,7 @@ services:
       --bind-address=0.0.0.0
       --skip-name-resolve
     ports:
-      - "3306:3306"
+      - "0.0.0.0:3306:3306"
     volumes:
       - mysql-5-data:/var/lib/mysql
       - ./docker/mysql/init-users.sql:/docker-entrypoint-initdb.d/01-init-users.sql:ro
@@ -209,6 +213,9 @@ services:
 
   # ═══════════════════════════════════════════════════════════
   # SIDECAR AGENTS (1 por máquina)
+  # Usa network_mode: host para conectarse tanto al etcd local
+  # como a los MySQL y etcd de las otras máquinas en la LAN.
+  # MYSQL_HOST apunta a 127.0.0.1 porque MySQL está en el mismo host.
   # ═══════════════════════════════════════════════════════════
   sidecar-1:
     profiles: ["node-1"]
@@ -216,11 +223,10 @@ services:
       context: .
       dockerfile: docker/Dockerfile.sidecar
     container_name: sidecar-1
-    depends_on:
-      - mysql-node-1
+    network_mode: host
     environment:
       NODE_IP: ${LAN_IP_1}
-      MYSQL_HOST: mysql-node-1
+      MYSQL_HOST: "127.0.0.1"
       MYSQL_PORT: "3306"
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
@@ -230,8 +236,8 @@ services:
       INITIAL_PRIMARY_IP: ${LAN_IP_1}
       ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
-      LEASE_TTL: "5"
-      CHECK_INTERVAL: "2"
+      LEASE_TTL: "10"
+      CHECK_INTERVAL: "3"
       MAX_DEFERRALS: "5"
     restart: unless-stopped
 
@@ -241,11 +247,10 @@ services:
       context: .
       dockerfile: docker/Dockerfile.sidecar
     container_name: sidecar-2
-    depends_on:
-      - mysql-node-2
+    network_mode: host
     environment:
       NODE_IP: ${LAN_IP_2}
-      MYSQL_HOST: mysql-node-2
+      MYSQL_HOST: "127.0.0.1"
       MYSQL_PORT: "3306"
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
@@ -255,8 +260,8 @@ services:
       INITIAL_PRIMARY_IP: ${LAN_IP_1}
       ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
-      LEASE_TTL: "5"
-      CHECK_INTERVAL: "2"
+      LEASE_TTL: "10"
+      CHECK_INTERVAL: "3"
       MAX_DEFERRALS: "5"
     restart: unless-stopped
 
@@ -266,11 +271,10 @@ services:
       context: .
       dockerfile: docker/Dockerfile.sidecar
     container_name: sidecar-3
-    depends_on:
-      - mysql-node-3
+    network_mode: host
     environment:
       NODE_IP: ${LAN_IP_3}
-      MYSQL_HOST: mysql-node-3
+      MYSQL_HOST: "127.0.0.1"
       MYSQL_PORT: "3306"
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
@@ -280,8 +284,8 @@ services:
       INITIAL_PRIMARY_IP: ${LAN_IP_1}
       ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
-      LEASE_TTL: "5"
-      CHECK_INTERVAL: "2"
+      LEASE_TTL: "10"
+      CHECK_INTERVAL: "3"
       MAX_DEFERRALS: "5"
     restart: unless-stopped
 
@@ -291,11 +295,10 @@ services:
       context: .
       dockerfile: docker/Dockerfile.sidecar
     container_name: sidecar-4
-    depends_on:
-      - mysql-node-4
+    network_mode: host
     environment:
       NODE_IP: ${LAN_IP_4}
-      MYSQL_HOST: mysql-node-4
+      MYSQL_HOST: "127.0.0.1"
       MYSQL_PORT: "3306"
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
@@ -305,8 +308,8 @@ services:
       INITIAL_PRIMARY_IP: ${LAN_IP_1}
       ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
-      LEASE_TTL: "5"
-      CHECK_INTERVAL: "2"
+      LEASE_TTL: "10"
+      CHECK_INTERVAL: "3"
       MAX_DEFERRALS: "5"
     restart: unless-stopped
 
@@ -316,11 +319,10 @@ services:
       context: .
       dockerfile: docker/Dockerfile.sidecar
     container_name: sidecar-5
-    depends_on:
-      - mysql-node-5
+    network_mode: host
     environment:
       NODE_IP: ${LAN_IP_5}
-      MYSQL_HOST: mysql-node-5
+      MYSQL_HOST: "127.0.0.1"
       MYSQL_PORT: "3306"
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
@@ -330,13 +332,13 @@ services:
       INITIAL_PRIMARY_IP: ${LAN_IP_1}
       ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
       ETCD_KEY: "/banco/mysql/primary"
-      LEASE_TTL: "5"
-      CHECK_INTERVAL: "2"
+      LEASE_TTL: "10"
+      CHECK_INTERVAL: "3"
       MAX_DEFERRALS: "5"
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════
-  # APLICACIÓN BANCARIA (Se puede correr en cualquier perfil 'app')
+  # APLICACIÓN BANCARIA (Correr en cualquier máquina con --profile app)
   # ═══════════════════════════════════════════════════════════
   banco-app:
     profiles: ["app"]
@@ -344,6 +346,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.app
     container_name: banco-app
+    network_mode: host
     environment:
       MYSQL_USER: "banco_app"
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
