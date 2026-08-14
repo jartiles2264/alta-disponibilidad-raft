@@ -4,9 +4,8 @@
 mysql-connector-python==8.4.0
 PyMySQL==1.1.1
 cryptography==49.0.0
-etcd3==0.12.0
 python-dotenv==1.0.1
-protobuf==3.20.3
+requests>=2.31.0
 
 # Testing
 pytest>=7.0

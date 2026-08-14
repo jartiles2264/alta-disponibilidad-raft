@@ -14,6 +14,7 @@
 #   docker compose --profile node-2 up -d --build
 #   docker compose --profile node-3 up -d --build
 #   docker compose --profile node-4 up -d --build
+#   docker compose --profile node-5 up -d --build
 # ─────────────────────────────────────────────────────────────
 
 services:
@@ -34,9 +35,11 @@ services:
       - --advertise-client-urls=http://${LAN_IP_1}:2379
       - --listen-peer-urls=http://0.0.0.0:2380
       - --initial-advertise-peer-urls=http://${LAN_IP_1}:2380
-      - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380
+      - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380,etcd-4=http://${LAN_IP_4}:2380,etcd-5=http://${LAN_IP_5}:2380
       - --initial-cluster-state=new
       - --initial-cluster-token=etcd-cluster-lan
+      - --heartbeat-interval=500
+      - --election-timeout=2500
     ports:
       - "0.0.0.0:2379:2379"
       - "0.0.0.0:2380:2380"
@@ -56,9 +59,11 @@ services:
       - --advertise-client-urls=http://${LAN_IP_2}:2379
       - --listen-peer-urls=http://0.0.0.0:2380
       - --initial-advertise-peer-urls=http://${LAN_IP_2}:2380
-      - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380
+      - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380,etcd-4=http://${LAN_IP_4}:2380,etcd-5=http://${LAN_IP_5}:2380
       - --initial-cluster-state=new
       - --initial-cluster-token=etcd-cluster-lan
+      - --heartbeat-interval=500
+      - --election-timeout=2500
     ports:
       - "0.0.0.0:2379:2379"
       - "0.0.0.0:2380:2380"
@@ -78,14 +83,64 @@ services:
       - --advertise-client-urls=http://${LAN_IP_3}:2379
       - --listen-peer-urls=http://0.0.0.0:2380
       - --initial-advertise-peer-urls=http://${LAN_IP_3}:2380
-      - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380
+      - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380,etcd-4=http://${LAN_IP_4}:2380,etcd-5=http://${LAN_IP_5}:2380
       - --initial-cluster-state=new
       - --initial-cluster-token=etcd-cluster-lan
+      - --heartbeat-interval=500
+      - --election-timeout=2500
     ports:
       - "0.0.0.0:2379:2379"
       - "0.0.0.0:2380:2380"
     volumes:
       - etcd-3-data:/etcd-data
+    restart: unless-stopped
+
+  etcd-4:
+    profiles: ["node-4"]
+    image: gcr.io/etcd-development/etcd:v3.5.12
+    container_name: etcd-4
+    command:
+      - etcd
+      - --name=etcd-4
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://${LAN_IP_4}:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://${LAN_IP_4}:2380
+      - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380,etcd-4=http://${LAN_IP_4}:2380,etcd-5=http://${LAN_IP_5}:2380
+      - --initial-cluster-state=new
+      - --initial-cluster-token=etcd-cluster-lan
+      - --heartbeat-interval=500
+      - --election-timeout=2500
+    ports:
+      - "0.0.0.0:2379:2379"
+      - "0.0.0.0:2380:2380"
+    volumes:
+      - etcd-4-data:/etcd-data
+    restart: unless-stopped
+
+  etcd-5:
+    profiles: ["node-5"]
+    image: gcr.io/etcd-development/etcd:v3.5.12
+    container_name: etcd-5
+    command:
+      - etcd
+      - --name=etcd-5
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://${LAN_IP_5}:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://${LAN_IP_5}:2380
+      - --initial-cluster=etcd-1=http://${LAN_IP_1}:2380,etcd-2=http://${LAN_IP_2}:2380,etcd-3=http://${LAN_IP_3}:2380,etcd-4=http://${LAN_IP_4}:2380,etcd-5=http://${LAN_IP_5}:2380
+      - --initial-cluster-state=new
+      - --initial-cluster-token=etcd-cluster-lan
+      - --heartbeat-interval=500
+      - --election-timeout=2500
+    ports:
+      - "0.0.0.0:2379:2379"
+      - "0.0.0.0:2380:2380"
+    volumes:
+      - etcd-5-data:/etcd-data
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════
@@ -236,6 +291,7 @@ services:
       NODE_IP: ${LAN_IP_1}
       MYSQL_HOST: mysql-node-1
       MYSQL_PORT: "3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
       MYSQL_REPL_USER: "replica_user"
@@ -243,9 +299,9 @@ services:
       MYSQL_NODES: "${LAN_IP_1},${LAN_IP_2},${LAN_IP_3},${LAN_IP_4},${LAN_IP_5}"
       INITIAL_PRIMARY_IP: ${LAN_IP_1}
       # etcd LOCAL por nombre de contenedor (evita Hairpin NAT en Windows), REMOTOS por LAN IP
-      ETCD_ENDPOINTS: "etcd-1:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
+      ETCD_ENDPOINTS: "etcd-1:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379,${LAN_IP_4}:2379,${LAN_IP_5}:2379"
       ETCD_KEY: "/banco/mysql/primary"
-      LEASE_TTL: "10"
+      LEASE_TTL: "6"
       CHECK_INTERVAL: "3"
       MAX_DEFERRALS: "5"
     restart: unless-stopped
@@ -263,6 +319,7 @@ services:
       NODE_IP: ${LAN_IP_2}
       MYSQL_HOST: mysql-node-2
       MYSQL_PORT: "3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
       MYSQL_REPL_USER: "replica_user"
@@ -270,9 +327,9 @@ services:
       MYSQL_NODES: "${LAN_IP_1},${LAN_IP_2},${LAN_IP_3},${LAN_IP_4},${LAN_IP_5}"
       INITIAL_PRIMARY_IP: ${LAN_IP_1}
       # etcd LOCAL por nombre de contenedor (evita Hairpin NAT en Windows), REMOTOS por LAN IP
-      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,etcd-2:2379,${LAN_IP_3}:2379"
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,etcd-2:2379,${LAN_IP_3}:2379,${LAN_IP_4}:2379,${LAN_IP_5}:2379"
       ETCD_KEY: "/banco/mysql/primary"
-      LEASE_TTL: "10"
+      LEASE_TTL: "6"
       CHECK_INTERVAL: "3"
       MAX_DEFERRALS: "5"
     restart: unless-stopped
@@ -290,6 +347,7 @@ services:
       NODE_IP: ${LAN_IP_3}
       MYSQL_HOST: mysql-node-3
       MYSQL_PORT: "3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
       MYSQL_REPL_USER: "replica_user"
@@ -297,9 +355,9 @@ services:
       MYSQL_NODES: "${LAN_IP_1},${LAN_IP_2},${LAN_IP_3},${LAN_IP_4},${LAN_IP_5}"
       INITIAL_PRIMARY_IP: ${LAN_IP_1}
       # etcd LOCAL por nombre de contenedor (evita Hairpin NAT en Windows), REMOTOS por LAN IP
-      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,etcd-3:2379"
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,etcd-3:2379,${LAN_IP_4}:2379,${LAN_IP_5}:2379"
       ETCD_KEY: "/banco/mysql/primary"
-      LEASE_TTL: "10"
+      LEASE_TTL: "6"
       CHECK_INTERVAL: "3"
       MAX_DEFERRALS: "5"
     restart: unless-stopped
@@ -312,19 +370,22 @@ services:
     container_name: sidecar-4
     depends_on:
       - mysql-node-4
+      - etcd-4
     environment:
       NODE_IP: ${LAN_IP_4}
       MYSQL_HOST: mysql-node-4
       MYSQL_PORT: "3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
       MYSQL_REPL_USER: "replica_user"
       MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD}
       MYSQL_NODES: "${LAN_IP_1},${LAN_IP_2},${LAN_IP_3},${LAN_IP_4},${LAN_IP_5}"
       INITIAL_PRIMARY_IP: ${LAN_IP_1}
-      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
+      # etcd LOCAL por nombre de contenedor (evita Hairpin NAT en Windows), REMOTOS por LAN IP
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379,etcd-4:2379,${LAN_IP_5}:2379"
       ETCD_KEY: "/banco/mysql/primary"
-      LEASE_TTL: "10"
+      LEASE_TTL: "6"
       CHECK_INTERVAL: "3"
       MAX_DEFERRALS: "5"
     restart: unless-stopped
@@ -337,19 +398,22 @@ services:
     container_name: sidecar-5
     depends_on:
       - mysql-node-5
+      - etcd-5
     environment:
       NODE_IP: ${LAN_IP_5}
       MYSQL_HOST: mysql-node-5
       MYSQL_PORT: "3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       SIDECAR_MYSQL_USER: "sidecar"
       SIDECAR_MYSQL_PASSWORD: ${SIDECAR_MYSQL_PASSWORD}
       MYSQL_REPL_USER: "replica_user"
       MYSQL_REPL_PASSWORD: ${MYSQL_REPL_PASSWORD}
       MYSQL_NODES: "${LAN_IP_1},${LAN_IP_2},${LAN_IP_3},${LAN_IP_4},${LAN_IP_5}"
       INITIAL_PRIMARY_IP: ${LAN_IP_1}
-      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
+      # etcd LOCAL por nombre de contenedor (evita Hairpin NAT en Windows), REMOTOS por LAN IP
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379,${LAN_IP_4}:2379,etcd-5:2379"
       ETCD_KEY: "/banco/mysql/primary"
-      LEASE_TTL: "10"
+      LEASE_TTL: "6"
       CHECK_INTERVAL: "3"
       MAX_DEFERRALS: "5"
     restart: unless-stopped
@@ -368,7 +432,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: "banco_db"
       MYSQL_PORT: "3306"
-      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379"
+      ETCD_ENDPOINTS: "${LAN_IP_1}:2379,${LAN_IP_2}:2379,${LAN_IP_3}:2379,${LAN_IP_4}:2379,${LAN_IP_5}:2379"
       ETCD_KEY: "/banco/mysql/primary"
       POOL_SIZE: "5"
       RETRY_MAX: "15"
@@ -385,6 +449,8 @@ volumes:
   etcd-1-data:
   etcd-2-data:
   etcd-3-data:
+  etcd-4-data:
+  etcd-5-data:
   mysql-1-data:
   mysql-2-data:
   mysql-3-data:

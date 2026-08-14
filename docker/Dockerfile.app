@@ -12,4 +12,4 @@ COPY src/ ./src/
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
-CMD ["python", "src/banco_app.py", "--prueba-oro"]
+CMD ["python", "src/banco_app.py"]
